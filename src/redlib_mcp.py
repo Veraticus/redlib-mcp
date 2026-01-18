@@ -353,3 +353,30 @@ async def get_wiki(
 
     result = await client.get(path)
     return json.dumps(result)
+
+
+@server.tool()
+async def get_duplicates(
+    post: str,
+) -> str:
+    """
+    Find cross-posts/duplicates of a post.
+
+    Args:
+        post: Post ID, permalink, or Reddit URL
+
+    Returns:
+        JSON with original post and duplicates array
+    """
+    if client is None:
+        init_client()
+
+    path = normalize_post(post)
+
+    # Convert /comments/ path to /duplicates/ path
+    # /r/rust/comments/abc123/title -> /r/rust/duplicates/abc123/title
+    # /comments/abc123 -> /duplicates/abc123
+    path = path.replace("/comments/", "/duplicates/")
+
+    result = await client.get(path)
+    return json.dumps(result)

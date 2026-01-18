@@ -254,3 +254,37 @@ async def test_get_wiki_specific_page():
 
         call_args = mock_client.get.call_args
         assert call_args[0][0] == "/r/rust/wiki/faq"
+
+
+@pytest.mark.asyncio
+async def test_get_duplicates_by_id():
+    from redlib_mcp import get_duplicates
+
+    mock_data = {
+        "data": {
+            "post": {"id": "abc123"},
+            "duplicates": [{"id": "xyz789"}]
+        },
+        "error": None
+    }
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        result = await get_duplicates("abc123")
+
+    assert json.loads(result) == mock_data
+
+
+@pytest.mark.asyncio
+async def test_get_duplicates_by_url():
+    from redlib_mcp import get_duplicates
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_duplicates("https://reddit.com/r/rust/comments/abc123/title")
+
+        call_args = mock_client.get.call_args
+        # Should convert comments path to duplicates path
+        assert "/duplicates/" in call_args[0][0]
