@@ -78,3 +78,50 @@ async def test_get_subreddit_accepts_reddit_url():
 
         call_args = mock_client.get.call_args
         assert call_args[0][0] == "/r/rust/hot"
+
+
+@pytest.mark.asyncio
+async def test_get_post_by_id():
+    from redlib_mcp import get_post
+
+    mock_data = {
+        "data": {
+            "post": {"id": "abc123", "title": "Test"},
+            "comments": []
+        },
+        "error": None
+    }
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        result = await get_post("abc123")
+
+    assert json.loads(result) == mock_data
+
+
+@pytest.mark.asyncio
+async def test_get_post_by_url():
+    from redlib_mcp import get_post
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_post("https://reddit.com/r/rust/comments/abc123/some_title")
+
+        call_args = mock_client.get.call_args
+        assert call_args[0][0] == "/r/rust/comments/abc123/some_title"
+
+
+@pytest.mark.asyncio
+async def test_get_post_with_comment_focus():
+    from redlib_mcp import get_post
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_post("abc123", comment_id="xyz789")
+
+        call_args = mock_client.get.call_args
+        assert "/xyz789" in call_args[0][0]

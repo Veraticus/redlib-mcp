@@ -229,3 +229,33 @@ async def get_subreddit(
 
     result = await client.get(path, params=params if params else None)
     return json.dumps(result)
+
+
+@server.tool()
+async def get_post(
+    post: str,
+    comment_id: str | None = None,
+) -> str:
+    """
+    Fetch a post with its comments.
+
+    Args:
+        post: Post ID, permalink path, or Reddit URL
+        comment_id: Optional comment ID to focus on a specific thread
+
+    Returns:
+        JSON with post data and comments array
+    """
+    if client is None:
+        init_client()
+
+    path = normalize_post(post)
+
+    # Append comment ID if focusing on specific thread
+    if comment_id:
+        # Ensure comment_id doesn't have leading slash
+        comment_id = comment_id.lstrip("/")
+        path = f"{path}/{comment_id}"
+
+    result = await client.get(path)
+    return json.dumps(result)
