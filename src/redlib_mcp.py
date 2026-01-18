@@ -385,7 +385,13 @@ async def get_duplicates(
 def main():
     """Main entry point for the MCP server."""
     init_client()
-    server.run()
+    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    if transport == "sse":
+        host = os.getenv("MCP_HOST", "127.0.0.1")
+        port = int(os.getenv("MCP_PORT", "8080"))
+        server.run(transport="sse", host=host, port=port)
+    else:
+        server.run()
 
 
 if __name__ == "__main__":
