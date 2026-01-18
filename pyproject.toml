@@ -1,0 +1,16 @@
+[project]
+name = "redlib-mcp"
+version = "0.1.0"
+description = "MCP server for Redlib - privacy-focused Reddit frontend"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.5.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+redlib-mcp = "redlib_mcp:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
