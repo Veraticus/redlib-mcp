@@ -380,3 +380,13 @@ async def get_duplicates(
 
     result = await client.get(path)
     return json.dumps(result)
+
+
+def main():
+    """Main entry point for the MCP server."""
+    init_client()
+    server.run()
+
+
+if __name__ == "__main__":
+    main()
