@@ -387,9 +387,8 @@ def main():
     init_client()
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     if transport == "sse":
-        host = os.getenv("MCP_HOST", "127.0.0.1")
-        port = int(os.getenv("MCP_PORT", "8080"))
-        server.run(transport="sse", host=host, port=port)
+        # Port/host configured via FASTMCP_SERVER_PORT and FASTMCP_SERVER_HOST env vars
+        server.run(transport="sse")
     else:
         server.run()
 
