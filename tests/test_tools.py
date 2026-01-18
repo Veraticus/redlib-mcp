@@ -1,0 +1,80 @@
+import json
+import pytest
+from unittest.mock import AsyncMock, patch
+
+
+@pytest.mark.asyncio
+async def test_get_subreddit_basic():
+    from redlib_mcp import get_subreddit
+
+    mock_data = {
+        "data": {
+            "subreddit": {"name": "rust"},
+            "posts": [{"title": "Hello Rust"}],
+            "after": "abc123"
+        },
+        "error": None
+    }
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        result = await get_subreddit("rust")
+
+    assert json.loads(result) == mock_data
+
+
+@pytest.mark.asyncio
+async def test_get_subreddit_with_sort():
+    from redlib_mcp import get_subreddit
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_subreddit("rust", sort="new")
+
+        # Check the path includes sort
+        call_args = mock_client.get.call_args
+        assert call_args[0][0] == "/r/rust/new"
+
+
+@pytest.mark.asyncio
+async def test_get_subreddit_with_time_filter():
+    from redlib_mcp import get_subreddit
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_subreddit("rust", sort="top", time="week")
+
+        call_kwargs = mock_client.get.call_args[1]
+        assert call_kwargs["params"]["t"] == "week"
+
+
+@pytest.mark.asyncio
+async def test_get_subreddit_with_pagination():
+    from redlib_mcp import get_subreddit
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_subreddit("rust", after="cursor123")
+
+        call_kwargs = mock_client.get.call_args[1]
+        assert call_kwargs["params"]["after"] == "cursor123"
+
+
+@pytest.mark.asyncio
+async def test_get_subreddit_accepts_reddit_url():
+    from redlib_mcp import get_subreddit
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_subreddit("https://reddit.com/r/rust")
+
+        call_args = mock_client.get.call_args
+        assert call_args[0][0] == "/r/rust/hot"

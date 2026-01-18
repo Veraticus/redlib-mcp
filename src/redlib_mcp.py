@@ -6,11 +6,13 @@ MCP server that exposes Redlib's JSON API endpoints to LLMs.
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
+from mcp.server.fastmcp import FastMCP
 
 # Known Reddit domains to strip
 REDDIT_DOMAINS = {
@@ -167,3 +169,63 @@ class RedlibClient:
             response = await client.get(url, params=params)
             response.raise_for_status()
             return response.json()
+
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize MCP server
+server = FastMCP("redlib-mcp")
+
+# Global client instance
+client: RedlibClient | None = None
+
+
+def init_client():
+    """Initialize the Redlib client from configuration."""
+    global client
+    base_url = load_config()
+    client = RedlibClient(base_url)
+    logger.info(f"Initialized Redlib client for {base_url}")
+
+
+@server.tool()
+async def get_subreddit(
+    subreddit: str,
+    sort: str = "hot",
+    time: str | None = None,
+    after: str | None = None,
+) -> str:
+    """
+    Fetch posts from a subreddit.
+
+    Args:
+        subreddit: Subreddit name, r/name, or Reddit URL
+        sort: Sort order - hot, new, top, rising
+        time: Time filter for top sort - hour, day, week, month, year, all
+        after: Pagination cursor from previous response
+
+    Returns:
+        JSON with subreddit info, posts array, and pagination cursor
+    """
+    if client is None:
+        init_client()
+
+    path = normalize_subreddit(subreddit)
+
+    # Append sort to path
+    if sort and sort != "hot":
+        path = f"{path}/{sort}"
+    else:
+        path = f"{path}/hot"
+
+    # Build query params
+    params = {}
+    if time:
+        params["t"] = time
+    if after:
+        params["after"] = after
+
+    result = await client.get(path, params=params if params else None)
+    return json.dumps(result)
