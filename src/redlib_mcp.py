@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+import httpx
+
 # Known Reddit domains to strip
 REDDIT_DOMAINS = {
     "reddit.com",
@@ -145,3 +147,23 @@ def load_config() -> str:
 
     # 3. Default
     return "http://localhost:8080"
+
+
+class RedlibClient:
+    """HTTP client for Redlib's JSON API."""
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+
+    async def get(self, path: str, params: dict | None = None) -> dict:
+        """
+        Fetch JSON from a Redlib endpoint.
+
+        Appends .js to the path to get JSON response.
+        """
+        url = f"{self.base_url}{path}.js"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            return response.json()
