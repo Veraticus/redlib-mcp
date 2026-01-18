@@ -5,6 +5,9 @@ Redlib MCP Server
 MCP server that exposes Redlib's JSON API endpoints to LLMs.
 """
 
+import json
+import os
+from pathlib import Path
 from urllib.parse import urlparse
 
 # Known Reddit domains to strip
@@ -115,3 +118,30 @@ def normalize_post(post: str, redlib_url: str | None = None) -> str:
         return f"/comments/{name}"
 
     return path
+
+
+def load_config() -> str:
+    """
+    Load Redlib URL from configuration.
+
+    Priority:
+    1. REDLIB_URL environment variable
+    2. ~/.config/redlib/config.json
+    3. Default: http://localhost:8080
+    """
+    # 1. Environment variable
+    if url := os.getenv("REDLIB_URL"):
+        return url
+
+    # 2. Config file
+    config_path = Path.home() / ".config" / "redlib" / "config.json"
+    if config_path.exists():
+        try:
+            config = json.loads(config_path.read_text())
+            if url := config.get("REDLIB_URL"):
+                return url
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    # 3. Default
+    return "http://localhost:8080"
