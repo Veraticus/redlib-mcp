@@ -328,3 +328,28 @@ async def search_reddit(
 
     result = await client.get(path, params=params)
     return json.dumps(result)
+
+
+@server.tool()
+async def get_wiki(
+    subreddit: str,
+    page: str = "index",
+) -> str:
+    """
+    Fetch a subreddit's wiki page.
+
+    Args:
+        subreddit: Subreddit name, r/name, or Reddit URL
+        page: Wiki page name (default: index)
+
+    Returns:
+        JSON with subreddit, page name, and content
+    """
+    if client is None:
+        init_client()
+
+    sub_path = normalize_subreddit(subreddit)
+    path = f"{sub_path}/wiki/{page}"
+
+    result = await client.get(path)
+    return json.dumps(result)

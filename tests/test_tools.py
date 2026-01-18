@@ -220,3 +220,37 @@ async def test_search_reddit_query_param():
 
         call_kwargs = mock_client.get.call_args[1]
         assert call_kwargs["params"]["q"] == "rust programming"
+
+
+@pytest.mark.asyncio
+async def test_get_wiki_index():
+    from redlib_mcp import get_wiki
+
+    mock_data = {
+        "data": {
+            "subreddit": "rust",
+            "page": "index",
+            "content": "# Wiki content"
+        },
+        "error": None
+    }
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        result = await get_wiki("rust")
+
+    assert json.loads(result) == mock_data
+
+
+@pytest.mark.asyncio
+async def test_get_wiki_specific_page():
+    from redlib_mcp import get_wiki
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_wiki("rust", page="faq")
+
+        call_args = mock_client.get.call_args
+        assert call_args[0][0] == "/r/rust/wiki/faq"
