@@ -173,3 +173,50 @@ async def test_get_user_with_pagination():
 
         call_kwargs = mock_client.get.call_args[1]
         assert call_kwargs["params"]["after"] == "cursor123"
+
+
+@pytest.mark.asyncio
+async def test_search_reddit_basic():
+    from redlib_mcp import search_reddit
+
+    mock_data = {
+        "data": {
+            "posts": [{"title": "Result 1"}],
+            "after": "abc123"
+        },
+        "error": None
+    }
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        result = await search_reddit("rust programming")
+
+    assert json.loads(result) == mock_data
+
+
+@pytest.mark.asyncio
+async def test_search_reddit_with_subreddit():
+    from redlib_mcp import search_reddit
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await search_reddit("async", subreddit="rust")
+
+        call_args = mock_client.get.call_args
+        assert call_args[0][0] == "/r/rust/search"
+
+
+@pytest.mark.asyncio
+async def test_search_reddit_query_param():
+    from redlib_mcp import search_reddit
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await search_reddit("rust programming")
+
+        call_kwargs = mock_client.get.call_args[1]
+        assert call_kwargs["params"]["q"] == "rust programming"

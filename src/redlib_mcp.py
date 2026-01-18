@@ -294,3 +294,37 @@ async def get_user(
 
     result = await client.get(path, params=params if params else None)
     return json.dumps(result)
+
+
+@server.tool()
+async def search_reddit(
+    query: str,
+    subreddit: str | None = None,
+    after: str | None = None,
+) -> str:
+    """
+    Search for posts on Reddit.
+
+    Args:
+        query: Search query string
+        subreddit: Optional subreddit to limit search to
+        after: Pagination cursor from previous response
+
+    Returns:
+        JSON with search results and pagination cursor
+    """
+    if client is None:
+        init_client()
+
+    if subreddit:
+        sub_path = normalize_subreddit(subreddit)
+        path = f"{sub_path}/search"
+    else:
+        path = "/search"
+
+    params = {"q": query}
+    if after:
+        params["after"] = after
+
+    result = await client.get(path, params=params)
+    return json.dumps(result)
