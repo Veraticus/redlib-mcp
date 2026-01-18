@@ -125,3 +125,51 @@ async def test_get_post_with_comment_focus():
 
         call_args = mock_client.get.call_args
         assert "/xyz789" in call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_get_user_basic():
+    from redlib_mcp import get_user
+
+    mock_data = {
+        "data": {
+            "user": {"name": "spez"},
+            "posts": [],
+            "after": None
+        },
+        "error": None
+    }
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        result = await get_user("spez")
+
+    assert json.loads(result) == mock_data
+
+
+@pytest.mark.asyncio
+async def test_get_user_with_listing():
+    from redlib_mcp import get_user
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_user("spez", listing="submitted")
+
+        call_args = mock_client.get.call_args
+        assert call_args[0][0] == "/user/spez/submitted"
+
+
+@pytest.mark.asyncio
+async def test_get_user_with_pagination():
+    from redlib_mcp import get_user
+
+    mock_data = {"data": None, "error": None}
+
+    with patch("redlib_mcp.client") as mock_client:
+        mock_client.get = AsyncMock(return_value=mock_data)
+        await get_user("spez", after="cursor123")
+
+        call_kwargs = mock_client.get.call_args[1]
+        assert call_kwargs["params"]["after"] == "cursor123"

@@ -259,3 +259,38 @@ async def get_post(
 
     result = await client.get(path)
     return json.dumps(result)
+
+
+@server.tool()
+async def get_user(
+    username: str,
+    listing: str = "overview",
+    after: str | None = None,
+) -> str:
+    """
+    Fetch a user's profile and content.
+
+    Args:
+        username: Username, u/name, or Reddit user URL
+        listing: Content type - overview, submitted, comments
+        after: Pagination cursor from previous response
+
+    Returns:
+        JSON with user info, posts array, and pagination cursor
+    """
+    if client is None:
+        init_client()
+
+    path = normalize_user(username)
+
+    # Append listing type
+    if listing and listing != "overview":
+        path = f"{path}/{listing}"
+
+    # Build query params
+    params = {}
+    if after:
+        params["after"] = after
+
+    result = await client.get(path, params=params if params else None)
+    return json.dumps(result)
