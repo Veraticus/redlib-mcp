@@ -360,6 +360,8 @@ async def search_reddit(
         path = "/search"
 
     params = {"q": query}
+    if subreddit:
+        params["restrict_sr"] = "on"
     if after:
         params["after"] = after
 
