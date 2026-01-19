@@ -12,8 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
-from mcp.server.fastmcp import FastMCP
-from mcp.server.transport_security import TransportSecuritySettings
+from fastmcp import FastMCP
 
 # Known Reddit domains to strip
 REDDIT_DOMAINS = {
@@ -176,17 +175,8 @@ class RedlibClient:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize MCP server with security settings
-# MCP_ALLOWED_HOSTS can be comma-separated list of allowed hosts (e.g., "localhost:*,example.com:*")
-allowed_hosts_env = os.getenv("MCP_ALLOWED_HOSTS", "localhost:*,127.0.0.1:*")
-allowed_hosts = [h.strip() for h in allowed_hosts_env.split(",")]
-
-transport_security = TransportSecuritySettings(
-    enable_dns_rebinding_protection=True,
-    allowed_hosts=allowed_hosts,
-)
-
-server = FastMCP("redlib-mcp", transport_security=transport_security)
+# Initialize MCP server
+server = FastMCP("redlib-mcp")
 
 # Global client instance
 client: RedlibClient | None = None

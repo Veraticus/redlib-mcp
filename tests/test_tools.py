@@ -3,6 +3,10 @@ import pytest
 from unittest.mock import AsyncMock, patch
 
 
+# Note: FastMCP wraps tools in FunctionTool objects.
+# Use .fn to access the underlying async function for testing.
+
+
 @pytest.mark.asyncio
 async def test_get_subreddit_basic():
     from redlib_mcp import get_subreddit
@@ -18,7 +22,7 @@ async def test_get_subreddit_basic():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        result = await get_subreddit("rust")
+        result = await get_subreddit.fn("rust")
 
     assert json.loads(result) == mock_data
 
@@ -31,7 +35,7 @@ async def test_get_subreddit_with_sort():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_subreddit("rust", sort="new")
+        await get_subreddit.fn("rust", sort="new")
 
         # Check the path includes sort
         call_args = mock_client.get.call_args
@@ -46,7 +50,7 @@ async def test_get_subreddit_with_time_filter():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_subreddit("rust", sort="top", time="week")
+        await get_subreddit.fn("rust", sort="top", time="week")
 
         call_kwargs = mock_client.get.call_args[1]
         assert call_kwargs["params"]["t"] == "week"
@@ -60,7 +64,7 @@ async def test_get_subreddit_with_pagination():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_subreddit("rust", after="cursor123")
+        await get_subreddit.fn("rust", after="cursor123")
 
         call_kwargs = mock_client.get.call_args[1]
         assert call_kwargs["params"]["after"] == "cursor123"
@@ -74,7 +78,7 @@ async def test_get_subreddit_accepts_reddit_url():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_subreddit("https://reddit.com/r/rust")
+        await get_subreddit.fn("https://reddit.com/r/rust")
 
         call_args = mock_client.get.call_args
         assert call_args[0][0] == "/r/rust/hot"
@@ -94,7 +98,7 @@ async def test_get_post_by_id():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        result = await get_post("abc123")
+        result = await get_post.fn("abc123")
 
     assert json.loads(result) == mock_data
 
@@ -107,7 +111,7 @@ async def test_get_post_by_url():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_post("https://reddit.com/r/rust/comments/abc123/some_title")
+        await get_post.fn("https://reddit.com/r/rust/comments/abc123/some_title")
 
         call_args = mock_client.get.call_args
         assert call_args[0][0] == "/r/rust/comments/abc123/some_title"
@@ -121,7 +125,7 @@ async def test_get_post_with_comment_focus():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_post("abc123", comment_id="xyz789")
+        await get_post.fn("abc123", comment_id="xyz789")
 
         call_args = mock_client.get.call_args
         assert "/xyz789" in call_args[0][0]
@@ -142,7 +146,7 @@ async def test_get_user_basic():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        result = await get_user("spez")
+        result = await get_user.fn("spez")
 
     assert json.loads(result) == mock_data
 
@@ -155,7 +159,7 @@ async def test_get_user_with_listing():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_user("spez", listing="submitted")
+        await get_user.fn("spez", listing="submitted")
 
         call_args = mock_client.get.call_args
         assert call_args[0][0] == "/user/spez/submitted"
@@ -169,7 +173,7 @@ async def test_get_user_with_pagination():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_user("spez", after="cursor123")
+        await get_user.fn("spez", after="cursor123")
 
         call_kwargs = mock_client.get.call_args[1]
         assert call_kwargs["params"]["after"] == "cursor123"
@@ -189,7 +193,7 @@ async def test_search_reddit_basic():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        result = await search_reddit("rust programming")
+        result = await search_reddit.fn("rust programming")
 
     assert json.loads(result) == mock_data
 
@@ -202,7 +206,7 @@ async def test_search_reddit_with_subreddit():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await search_reddit("async", subreddit="rust")
+        await search_reddit.fn("async", subreddit="rust")
 
         call_args = mock_client.get.call_args
         assert call_args[0][0] == "/r/rust/search"
@@ -216,7 +220,7 @@ async def test_search_reddit_query_param():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await search_reddit("rust programming")
+        await search_reddit.fn("rust programming")
 
         call_kwargs = mock_client.get.call_args[1]
         assert call_kwargs["params"]["q"] == "rust programming"
@@ -237,7 +241,7 @@ async def test_get_wiki_index():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        result = await get_wiki("rust")
+        result = await get_wiki.fn("rust")
 
     assert json.loads(result) == mock_data
 
@@ -250,7 +254,7 @@ async def test_get_wiki_specific_page():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_wiki("rust", page="faq")
+        await get_wiki.fn("rust", page="faq")
 
         call_args = mock_client.get.call_args
         assert call_args[0][0] == "/r/rust/wiki/faq"
@@ -270,7 +274,7 @@ async def test_get_duplicates_by_id():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        result = await get_duplicates("abc123")
+        result = await get_duplicates.fn("abc123")
 
     assert json.loads(result) == mock_data
 
@@ -283,7 +287,7 @@ async def test_get_duplicates_by_url():
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
-        await get_duplicates("https://reddit.com/r/rust/comments/abc123/title")
+        await get_duplicates.fn("https://reddit.com/r/rust/comments/abc123/title")
 
         call_args = mock_client.get.call_args
         # Should convert comments path to duplicates path
