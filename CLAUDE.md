@@ -12,8 +12,11 @@ Redlib MCP is a Model Context Protocol server that exposes Redlib's JSON API end
 # Enter dev shell (Nix)
 nix develop
 
-# Run the server
+# Run the server (stdio transport)
 python src/redlib_mcp.py
+
+# Run the server (HTTP transport with OAuth)
+redlib-mcp-server
 
 # Run tests
 pytest
@@ -37,6 +40,27 @@ Priority order:
 1. `REDLIB_URL` environment variable
 2. `~/.config/redlib/config.json` file
 3. Default: `http://localhost:8080`
+
+## OAuth Configuration (Optional)
+
+To enable OAuth authentication via Cloudflare Access:
+
+```bash
+# Required
+export ACCESS_CLIENT_ID="your-client-id"
+export ACCESS_CLIENT_SECRET="your-client-secret"
+export ACCESS_TEAM_NAME="your-team"
+
+# Optional
+export MCP_SERVER_URL="https://your-server.com"  # For OAuth redirects
+export MCP_SERVER_HOST="0.0.0.0"                 # Default: 0.0.0.0
+export MCP_SERVER_PORT="8000"                    # Default: 8000
+
+# Run HTTP server with OAuth
+redlib-mcp-server
+```
+
+Without Access credentials, the server runs without authentication.
 
 ## Adding New Tools
 
