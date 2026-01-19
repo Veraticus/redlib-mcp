@@ -45,6 +45,7 @@
             anyio
             beartype
             cachetools
+            diskcache
           ];
           doCheck = false;
         };
