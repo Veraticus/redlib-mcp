@@ -92,3 +92,44 @@ def test_load_access_config_custom_urls(monkeypatch):
     config = load_access_config()
 
     assert config["config_url"] == "https://custom.example.com/.well-known/openid-configuration"
+
+
+def test_create_server_with_auth(monkeypatch):
+    """Server created with OIDCProxy when Access configured."""
+    monkeypatch.setenv("ACCESS_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("ACCESS_CLIENT_SECRET", "test-secret")
+    monkeypatch.setenv("ACCESS_TEAM_NAME", "test-team")
+    monkeypatch.setenv("MCP_SERVER_URL", "http://localhost:8000")
+
+    # Mock the OIDC configuration fetch that OIDCProxy does at construction
+    mock_oidc_config = {
+        "issuer": "https://test-team.cloudflareaccess.com",
+        "authorization_endpoint": "https://test-team.cloudflareaccess.com/cdn-cgi/access/sso/oidc/authorize",
+        "token_endpoint": "https://test-team.cloudflareaccess.com/cdn-cgi/access/sso/oidc/token",
+        "jwks_uri": "https://test-team.cloudflareaccess.com/cdn-cgi/access/certs",
+        "response_types_supported": ["code"],
+        "subject_types_supported": ["public"],
+        "id_token_signing_alg_values_supported": ["RS256"],
+    }
+
+    with patch("httpx.get") as mock_get:
+        mock_response = mock_get.return_value
+        mock_response.raise_for_status = lambda: None
+        mock_response.json.return_value = mock_oidc_config
+
+        from redlib_mcp import create_authenticated_server
+        server = create_authenticated_server()
+
+    assert server is not None
+    assert server.name == "redlib-mcp"
+
+
+def test_create_server_without_auth(monkeypatch):
+    """Server created without auth when Access not configured."""
+    monkeypatch.delenv("ACCESS_CLIENT_ID", raising=False)
+    monkeypatch.delenv("ACCESS_CLIENT_SECRET", raising=False)
+
+    from redlib_mcp import create_authenticated_server
+    server = create_authenticated_server()
+
+    assert server is not None

@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 import httpx
 from fastmcp import FastMCP
+from fastmcp.server.auth.oidc_proxy import OIDCProxy
 
 # Known Reddit domains to strip
 REDDIT_DOMAINS = {
@@ -418,8 +419,49 @@ async def get_duplicates(
     return json.dumps(result)
 
 
+def create_authenticated_server() -> FastMCP:
+    """
+    Create MCP server with optional OAuth authentication.
+
+    If Access is configured, returns server with OIDCProxy auth.
+    Otherwise, returns unauthenticated server with existing tools.
+    """
+    access_config = load_access_config()
+
+    # Get tools from the module-level server
+    tools_list = list(server._tool_manager._tools.values())
+
+    if access_config:
+        base_url = os.getenv("MCP_SERVER_URL", "http://localhost:8000")
+        auth = OIDCProxy(
+            config_url=access_config["config_url"],
+            client_id=access_config["client_id"],
+            client_secret=access_config["client_secret"],
+            base_url=base_url,
+        )
+        logger.info("OAuth enabled via Cloudflare Access")
+        return FastMCP("redlib-mcp", auth=auth, tools=tools_list)
+    else:
+        logger.info("OAuth disabled - no Access credentials configured")
+        return FastMCP("redlib-mcp", tools=tools_list)
+
+
+def main_server():
+    """HTTP server entry point with OAuth support."""
+    init_client()
+
+    # Create server with auth
+    auth_server = create_authenticated_server()
+
+    # Run HTTP server
+    host = os.getenv("MCP_SERVER_HOST", "0.0.0.0")
+    port = int(os.getenv("MCP_SERVER_PORT", "8000"))
+
+    auth_server.run(transport="http", host=host, port=port)
+
+
 def main():
-    """Main entry point for the MCP server."""
+    """Main entry point for the MCP server (stdio transport)."""
     init_client()
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     if transport == "sse":
