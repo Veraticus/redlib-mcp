@@ -68,6 +68,7 @@
             cloudpickle
             opentelemetry-exporter-prometheus
             opentelemetry-instrumentation
+            fakeredis
           ];
           doCheck = false;
         };
