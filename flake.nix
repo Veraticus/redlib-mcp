@@ -69,6 +69,7 @@
             opentelemetry-exporter-prometheus
             opentelemetry-instrumentation
             fakeredis
+            lupa
           ];
           doCheck = false;
         };
