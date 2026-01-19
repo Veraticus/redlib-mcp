@@ -14,17 +14,26 @@ async def test_get_subreddit_basic():
     mock_data = {
         "data": {
             "subreddit": {"name": "rust"},
-            "posts": [{"title": "Hello Rust"}],
+            "posts": [{"title": "Hello Rust", "id": "123", "author": {"name": "user1"}}],
             "after": "abc123"
         },
         "error": None
+    }
+
+    # Expected after stripping - fields outside POST_FIELDS are removed
+    expected = {
+        "data": {
+            "subreddit": {"name": "rust"},
+            "posts": [{"title": "Hello Rust", "id": "123", "author": "user1"}],
+            "after": "abc123"
+        }
     }
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
         result = await get_subreddit.fn("rust")
 
-    assert json.loads(result) == mock_data
+    assert json.loads(result) == expected
 
 
 @pytest.mark.asyncio
@@ -90,17 +99,25 @@ async def test_get_post_by_id():
 
     mock_data = {
         "data": {
-            "post": {"id": "abc123", "title": "Test"},
+            "post": {"id": "abc123", "title": "Test", "author": {"name": "poster"}},
             "comments": []
         },
         "error": None
+    }
+
+    # Expected after stripping - author simplified to name string
+    expected = {
+        "data": {
+            "post": {"id": "abc123", "title": "Test", "author": "poster"},
+            "comments": []
+        }
     }
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
         result = await get_post.fn("abc123")
 
-    assert json.loads(result) == mock_data
+    assert json.loads(result) == expected
 
 
 @pytest.mark.asyncio
@@ -144,11 +161,19 @@ async def test_get_user_basic():
         "error": None
     }
 
+    # Expected after stripping - user field not in strip_response, so data wrapper recurses
+    expected = {
+        "data": {
+            "posts": [],
+            "after": None
+        }
+    }
+
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
         result = await get_user.fn("spez")
 
-    assert json.loads(result) == mock_data
+    assert json.loads(result) == expected
 
 
 @pytest.mark.asyncio
@@ -185,17 +210,25 @@ async def test_search_reddit_basic():
 
     mock_data = {
         "data": {
-            "posts": [{"title": "Result 1"}],
+            "posts": [{"title": "Result 1", "id": "r1", "author": {"name": "user1"}}],
             "after": "abc123"
         },
         "error": None
+    }
+
+    # Expected after stripping
+    expected = {
+        "data": {
+            "posts": [{"title": "Result 1", "id": "r1", "author": "user1"}],
+            "after": "abc123"
+        }
     }
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
         result = await search_reddit.fn("rust programming")
 
-    assert json.loads(result) == mock_data
+    assert json.loads(result) == expected
 
 
 @pytest.mark.asyncio
@@ -233,17 +266,26 @@ async def test_get_wiki_index():
     mock_data = {
         "data": {
             "subreddit": "rust",
-            "page": "index",
+            "wiki_page": "index",
             "content": "# Wiki content"
         },
         "error": None
+    }
+
+    # Expected after stripping - data wrapper recurses, keeps recognized keys
+    expected = {
+        "data": {
+            "subreddit": "rust",
+            "wiki_page": "index",
+            "content": "# Wiki content"
+        }
     }
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
         result = await get_wiki.fn("rust")
 
-    assert json.loads(result) == mock_data
+    assert json.loads(result) == expected
 
 
 @pytest.mark.asyncio
@@ -266,17 +308,25 @@ async def test_get_duplicates_by_id():
 
     mock_data = {
         "data": {
-            "post": {"id": "abc123"},
-            "duplicates": [{"id": "xyz789"}]
+            "post": {"id": "abc123", "title": "Test", "author": {"name": "poster"}},
+            "duplicates": [{"id": "xyz789", "title": "Dup", "author": {"name": "other"}}]
         },
         "error": None
+    }
+
+    # Expected after stripping - author simplified
+    expected = {
+        "data": {
+            "post": {"id": "abc123", "title": "Test", "author": "poster"},
+            "duplicates": [{"id": "xyz789", "title": "Dup", "author": "other"}]
+        }
     }
 
     with patch("redlib_mcp.client") as mock_client:
         mock_client.get = AsyncMock(return_value=mock_data)
         result = await get_duplicates.fn("abc123")
 
-    assert json.loads(result) == mock_data
+    assert json.loads(result) == expected
 
 
 @pytest.mark.asyncio
@@ -292,3 +342,118 @@ async def test_get_duplicates_by_url():
         call_args = mock_client.get.call_args
         # Should convert comments path to duplicates path
         assert "/duplicates/" in call_args[0][0]
+
+
+# Unit tests for strip_response helper functions
+class TestStripResponse:
+    def test_strip_post_basic(self):
+        from redlib_mcp import strip_post
+
+        post = {
+            "id": "abc123",
+            "title": "Test Post",
+            "body": "Content here",
+            "author": {"name": "user1", "flair": {"text": "flair"}},
+            "score": 100,
+            "subreddit": "rust",
+            "permalink": "/r/rust/comments/abc123",
+            "extra_field": "should be removed",
+            "awards": [{"name": "Gold"}],
+        }
+
+        result = strip_post(post)
+
+        assert result["id"] == "abc123"
+        assert result["title"] == "Test Post"
+        assert result["body"] == "Content here"
+        assert result["author"] == "user1"  # Simplified to string
+        assert result["score"] == 100
+        assert "extra_field" not in result
+        assert "awards" not in result  # Not in POST_FIELDS
+
+    def test_strip_comment_basic(self):
+        from redlib_mcp import strip_comment
+
+        comment = {
+            "id": "xyz789",
+            "body": "A comment",
+            "author": {"name": "commenter", "flair": {"text": "mod"}},
+            "score": 50,
+            "created": "1234567890",
+            "kind": "t1",
+            "post_link": "/r/rust/comments/abc123",
+            "prefs": {"show_nsfw": True},
+            "replies": [],
+        }
+
+        result = strip_comment(comment)
+
+        assert result["id"] == "xyz789"
+        assert result["body"] == "A comment"
+        assert result["author"] == "commenter"  # Simplified
+        assert result["score"] == 50
+        assert "post_link" not in result
+        assert "prefs" not in result
+        assert "replies" in result
+
+    def test_strip_comment_nested_replies(self):
+        from redlib_mcp import strip_comment
+
+        comment = {
+            "id": "parent",
+            "body": "Parent",
+            "author": {"name": "user1"},
+            "score": 10,
+            "kind": "t1",
+            "replies": [
+                {
+                    "id": "child",
+                    "body": "Child",
+                    "author": {"name": "user2"},
+                    "score": 5,
+                    "kind": "t1",
+                    "post_link": "should be removed",
+                    "replies": [],
+                }
+            ],
+        }
+
+        result = strip_comment(comment)
+
+        assert result["author"] == "user1"
+        assert len(result["replies"]) == 1
+        assert result["replies"][0]["author"] == "user2"
+        assert "post_link" not in result["replies"][0]
+
+    def test_strip_response_full(self):
+        from redlib_mcp import strip_response
+
+        data = {
+            "post": {
+                "id": "abc123",
+                "title": "Test",
+                "author": {"name": "poster"},
+                "extra": "gone",
+            },
+            "comments": [
+                {
+                    "id": "c1",
+                    "body": "Hi",
+                    "author": {"name": "commenter"},
+                    "post_link": "removed",
+                    "replies": [],
+                }
+            ],
+            "after": "cursor123",
+            "error": None,  # Not preserved
+        }
+
+        result = strip_response(data)
+
+        assert result["post"]["id"] == "abc123"
+        assert result["post"]["author"] == "poster"
+        assert "extra" not in result["post"]
+        assert result["comments"][0]["author"] == "commenter"
+        assert "post_link" not in result["comments"][0]
+        assert result["after"] == "cursor123"
+        assert "error" not in result

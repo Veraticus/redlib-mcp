@@ -25,6 +25,67 @@ REDDIT_DOMAINS = {
     "m.reddit.com",
 }
 
+# Essential fields for LLM consumption - strip everything else
+POST_FIELDS = {
+    "id", "title", "body", "author", "subreddit", "score", "upvote_ratio",
+    "permalink", "num_comments", "created", "nsfw", "url", "thumbnail",
+    "is_self", "domain", "flair",
+}
+COMMENT_FIELDS = {"id", "body", "author", "score", "created", "replies", "kind"}
+
+
+def strip_post(post: dict) -> dict:
+    """Strip a post to essential fields for LLM consumption."""
+    result = {k: v for k, v in post.items() if k in POST_FIELDS}
+    # Simplify author to just name
+    if "author" in result and isinstance(result["author"], dict):
+        result["author"] = result["author"].get("name", "")
+    return result
+
+
+def strip_comment(comment: dict) -> dict:
+    """Strip a comment to essential fields, recursively handling replies."""
+    result = {k: v for k, v in comment.items() if k in COMMENT_FIELDS}
+    # Simplify author to just name
+    if "author" in result and isinstance(result["author"], dict):
+        result["author"] = result["author"].get("name", "")
+    # Recursively strip replies
+    if "replies" in result and isinstance(result["replies"], list):
+        result["replies"] = [strip_comment(r) for r in result["replies"]]
+    return result
+
+
+def strip_response(data: dict) -> dict:
+    """Strip API response to essential fields for minimal LLM payloads."""
+    result = {}
+
+    # Handle post
+    if "post" in data:
+        result["post"] = strip_post(data["post"])
+
+    # Handle posts array
+    if "posts" in data and isinstance(data["posts"], list):
+        result["posts"] = [strip_post(p) for p in data["posts"]]
+
+    # Handle comments array
+    if "comments" in data and isinstance(data["comments"], list):
+        result["comments"] = [strip_comment(c) for c in data["comments"]]
+
+    # Handle duplicates array
+    if "duplicates" in data and isinstance(data["duplicates"], list):
+        result["duplicates"] = [strip_post(d) for d in data["duplicates"]]
+
+    # Preserve pagination and metadata
+    for key in ("after", "before", "subreddit", "wiki_page", "content", "data"):
+        if key in data:
+            if key == "data" and isinstance(data[key], dict):
+                # Recursively strip data wrapper
+                result[key] = strip_response(data[key])
+            else:
+                result[key] = data[key]
+
+    return result
+
 
 def normalize_path(url: str, redlib_url: str | None = None) -> str:
     """
@@ -265,7 +326,7 @@ async def get_subreddit(
         params["after"] = after
 
     result = await client.get(path, params=params if params else None)
-    return json.dumps(result)
+    return json.dumps(strip_response(result))
 
 
 @server.tool()
@@ -295,7 +356,7 @@ async def get_post(
         path = f"{path}/{comment_id}"
 
     result = await client.get(path)
-    return json.dumps(result)
+    return json.dumps(strip_response(result))
 
 
 @server.tool()
@@ -330,7 +391,7 @@ async def get_user(
         params["after"] = after
 
     result = await client.get(path, params=params if params else None)
-    return json.dumps(result)
+    return json.dumps(strip_response(result))
 
 
 @server.tool()
@@ -366,7 +427,7 @@ async def search_reddit(
         params["after"] = after
 
     result = await client.get(path, params=params)
-    return json.dumps(result)
+    return json.dumps(strip_response(result))
 
 
 @server.tool()
@@ -391,7 +452,7 @@ async def get_wiki(
     path = f"{sub_path}/wiki/{page}"
 
     result = await client.get(path)
-    return json.dumps(result)
+    return json.dumps(strip_response(result))
 
 
 @server.tool()
@@ -418,7 +479,7 @@ async def get_duplicates(
     path = path.replace("/comments/", "/duplicates/")
 
     result = await client.get(path)
-    return json.dumps(result)
+    return json.dumps(strip_response(result))
 
 
 def create_authenticated_server() -> FastMCP:
