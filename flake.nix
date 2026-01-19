@@ -13,6 +13,98 @@
         python = pkgs.python312;
         pythonPackages = python.pkgs;
 
+        # Fetch additional dependencies not in nixpkgs
+        py-key-value-shared = pythonPackages.buildPythonPackage rec {
+          pname = "py_key_value_shared";
+          version = "0.3.0";
+          format = "wheel";
+          src = pythonPackages.fetchPypi {
+            inherit pname version format;
+            dist = "py3";
+            python = "py3";
+            sha256 = "sha256-Ww77p+vKCLsVix6Tr8LwfTC49AwvwSziSkwNhPQvkpg=";
+          };
+          propagatedBuildInputs = with pythonPackages; [
+            pydantic
+          ];
+          doCheck = false;
+        };
+
+        py-key-value-aio = pythonPackages.buildPythonPackage rec {
+          pname = "py_key_value_aio";
+          version = "0.3.0";
+          format = "wheel";
+          src = pythonPackages.fetchPypi {
+            inherit pname version format;
+            dist = "py3";
+            python = "py3";
+            sha256 = "sha256-HHgZFXZgeL/WCNqnaf77l+ZdHXN0aj37ZARg4yIHG2Q=";
+          };
+          propagatedBuildInputs = with pythonPackages; [
+            py-key-value-shared
+            anyio
+            beartype
+            cachetools
+          ];
+          doCheck = false;
+        };
+
+        pydocket = pythonPackages.buildPythonPackage rec {
+          pname = "pydocket";
+          version = "0.16.6";
+          format = "wheel";
+          src = pythonPackages.fetchPypi {
+            inherit pname version format;
+            dist = "py3";
+            python = "py3";
+            sha256 = "sha256-aD0h4uhGqlEGJ059WSEDMbJC1/sNzlsI07ggZWY+0YM=";
+          };
+          propagatedBuildInputs = with pythonPackages; [
+            anyio
+            pydantic
+            redis
+            cloudpickle
+            opentelemetry-exporter-prometheus
+            opentelemetry-instrumentation
+          ];
+          doCheck = false;
+        };
+
+        fastmcp = pythonPackages.buildPythonPackage rec {
+          pname = "fastmcp";
+          version = "2.14.3";
+          format = "wheel";
+          src = pythonPackages.fetchPypi {
+            inherit pname version format;
+            dist = "py3";
+            python = "py3";
+            sha256 = "sha256-EDxrTG6XqazCUcgdMD8RD+TyvboxNT31FdZicr8blBQ=";
+          };
+          propagatedBuildInputs = with pythonPackages; [
+            httpx
+            uvicorn
+            starlette
+            pydantic
+            pydantic-settings
+            anyio
+            sse-starlette
+            httpx-sse
+            opentelemetry-api
+            opentelemetry-sdk
+            exceptiongroup
+            python-dotenv
+            typer
+            rich
+            mcp
+            platformdirs
+            pydocket
+            py-key-value-aio
+            authlib
+          ];
+          pythonImportsCheck = [];
+          doCheck = false;
+        };
+
         redlib-mcp = pythonPackages.buildPythonApplication rec {
           pname = "redlib-mcp";
           version = "0.1.0";
@@ -25,13 +117,12 @@
           ];
 
           propagatedBuildInputs = with pythonPackages; [
+            fastmcp
             httpx
             uvicorn
           ];
 
-          # fastmcp is installed via pip as it's not in nixpkgs
-          # For the Nix package build, we rely on pyproject.toml dependencies
-
+          dontCheckRuntimeDeps = true;
           pythonImportsCheck = [ "redlib_mcp" ];
 
           meta = with pkgs.lib; {
@@ -64,18 +155,15 @@
           shellHook = ''
             echo "Redlib MCP development environment"
 
-            # Create a virtual environment for pip packages not in nixpkgs
             if [ ! -d .venv ]; then
               python -m venv .venv
             fi
             source .venv/bin/activate
 
-            # Install fastmcp if not present
             if ! python -c "import fastmcp" 2>/dev/null; then
               pip install -q "fastmcp>=2.13.0"
             fi
 
-            # Install package in editable mode
             pip install -q -e .
 
             echo "  python src/redlib_mcp.py  - Run the MCP server"
