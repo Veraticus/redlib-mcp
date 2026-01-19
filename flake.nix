@@ -25,9 +25,12 @@
           ];
 
           propagatedBuildInputs = with pythonPackages; [
-            mcp
             httpx
+            uvicorn
           ];
+
+          # fastmcp is installed via pip as it's not in nixpkgs
+          # For the Nix package build, we rely on pyproject.toml dependencies
 
           pythonImportsCheck = [ "redlib_mcp" ];
 
@@ -52,14 +55,31 @@
             pythonPackages.black
             pythonPackages.pytest
             pythonPackages.pytest-asyncio
-            pythonPackages.mcp
             pythonPackages.httpx
+            pythonPackages.uvicorn
+            pythonPackages.starlette
             git
           ];
 
           shellHook = ''
             echo "Redlib MCP development environment"
+
+            # Create a virtual environment for pip packages not in nixpkgs
+            if [ ! -d .venv ]; then
+              python -m venv .venv
+            fi
+            source .venv/bin/activate
+
+            # Install fastmcp if not present
+            if ! python -c "import fastmcp" 2>/dev/null; then
+              pip install -q "fastmcp>=2.13.0"
+            fi
+
+            # Install package in editable mode
+            pip install -q -e .
+
             echo "  python src/redlib_mcp.py  - Run the MCP server"
+            echo "  redlib-mcp-server         - Run HTTP server with OAuth"
             echo "  pytest                    - Run tests"
             echo "  nix build                 - Build with Nix"
           '';
