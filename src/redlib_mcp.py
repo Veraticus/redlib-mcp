@@ -229,6 +229,8 @@ def load_access_config() -> dict | None:
         ACCESS_CLIENT_SECRET: OAuth client secret from Access
         ACCESS_TEAM_NAME: Cloudflare team name (used to construct URLs)
         ACCESS_CONFIG_URL: Optional custom OIDC config URL
+        MCP_JWT_SECRET: Secret for signing JWT tokens (required for persistent sessions)
+        MCP_TOKEN_EXPIRY: Token expiry in seconds (default: 315360000 = 10 years)
     """
     client_id = os.getenv("ACCESS_CLIENT_ID")
     client_secret = os.getenv("ACCESS_CLIENT_SECRET")
@@ -246,10 +248,24 @@ def load_access_config() -> dict | None:
             return None
         config_url = f"https://{team_name}.cloudflareaccess.com/cdn-cgi/access/sso/oidc/.well-known/openid-configuration"
 
+    # JWT signing key for persistent sessions across restarts
+    jwt_signing_key = os.getenv("MCP_JWT_SECRET")
+    if not jwt_signing_key:
+        logger.warning(
+            "MCP_JWT_SECRET not set - tokens will be invalidated on server restart. "
+            "Set MCP_JWT_SECRET to a random string for persistent sessions."
+        )
+
+    # Token expiry in seconds (default: 10 years ≈ never)
+    # FastMCP's "None" uses smart defaults (1 hour with refresh token), so we use a large value
+    token_expiry = int(os.getenv("MCP_TOKEN_EXPIRY", "315360000"))  # 10 years
+
     return {
         "client_id": client_id,
         "client_secret": client_secret,
         "config_url": config_url,
+        "jwt_signing_key": jwt_signing_key,
+        "token_expiry": token_expiry,
     }
 
 
@@ -502,8 +518,12 @@ def create_authenticated_server() -> FastMCP:
             client_secret=access_config["client_secret"],
             base_url=base_url,
             required_scopes=["openid"],
+            jwt_signing_key=access_config.get("jwt_signing_key"),
+            fallback_access_token_expiry_seconds=access_config.get("token_expiry", 86400),
         )
         logger.info("OAuth enabled via Cloudflare Access")
+        if access_config.get("jwt_signing_key"):
+            logger.info("Persistent JWT signing enabled")
         return FastMCP("redlib-mcp", auth=auth, tools=tools_list)
     else:
         logger.info("OAuth disabled - no Access credentials configured")
