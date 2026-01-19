@@ -124,6 +124,7 @@
             fastmcp
             httpx
             uvicorn
+            websockets
           ];
 
           dontCheckRuntimeDeps = true;
