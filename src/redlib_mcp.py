@@ -151,6 +151,46 @@ def load_config() -> str:
     return "http://localhost:8080"
 
 
+# Configure logging early so it's available for load_access_config
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def load_access_config() -> dict | None:
+    """
+    Load Cloudflare Access configuration for OAuth.
+
+    Returns None if not configured (auth disabled).
+
+    Environment variables:
+        ACCESS_CLIENT_ID: OAuth client ID from Access
+        ACCESS_CLIENT_SECRET: OAuth client secret from Access
+        ACCESS_TEAM_NAME: Cloudflare team name (used to construct URLs)
+        ACCESS_CONFIG_URL: Optional custom OIDC config URL
+    """
+    client_id = os.getenv("ACCESS_CLIENT_ID")
+    client_secret = os.getenv("ACCESS_CLIENT_SECRET")
+
+    # Auth disabled if credentials not provided
+    if not client_id or not client_secret:
+        return None
+
+    # Build OIDC config URL
+    config_url = os.getenv("ACCESS_CONFIG_URL")
+    if not config_url:
+        team_name = os.getenv("ACCESS_TEAM_NAME")
+        if not team_name:
+            logger.warning("ACCESS_TEAM_NAME not set, cannot construct OIDC URL")
+            return None
+        config_url = f"https://{team_name}.cloudflareaccess.com/cdn-cgi/access/sso/oidc/.well-known/openid-configuration"
+
+    return {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "config_url": config_url,
+    }
+
+
 class RedlibClient:
     """HTTP client for Redlib's JSON API."""
 
@@ -170,10 +210,6 @@ class RedlibClient:
             response.raise_for_status()
             return response.json()
 
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Initialize MCP server
 server = FastMCP("redlib-mcp")
