@@ -46,6 +46,7 @@
             beartype
             cachetools
             diskcache
+            pathvalidate
           ];
           doCheck = false;
         };
