@@ -438,6 +438,7 @@ def create_authenticated_server() -> FastMCP:
             client_id=access_config["client_id"],
             client_secret=access_config["client_secret"],
             base_url=base_url,
+            required_scopes=["openid"],
         )
         logger.info("OAuth enabled via Cloudflare Access")
         return FastMCP("redlib-mcp", auth=auth, tools=tools_list)
